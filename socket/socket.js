@@ -48,19 +48,17 @@ const updateGameBoard = (room, row, col, userId) => {
 
 const checkWinner = (board) => {
   const size = board.length;
-  const winCondition = 5; // Number of consecutive marks needed to win
+  const winCondition = 5;
 
-  // Helper function to check if a sequence is all the same mark
   const isWinningSequence = (sequence) => {
     return sequence.every((cell) => cell !== "" && cell === sequence[0]);
   };
 
-  // Check rows
   for (let row = 0; row < size; row++) {
     for (let col = 0; col <= size - winCondition; col++) {
       const sequence = board[row].slice(col, col + winCondition);
       if (isWinningSequence(sequence)) {
-        return true; // Winner found
+        return true;
       }
     }
   }
@@ -182,7 +180,6 @@ io.on("connection", (socket) => {
     socket.room = room.id;
     socket.join(socket.room);
     console.log("Room [" + socket.room + "] created");
-    console.log(room.game);
     io.in(socket.room).emit("waiting-play", listRooms[i]);
   });
 
@@ -230,9 +227,14 @@ io.on("connection", (socket) => {
       //   }
       // }
       console.log("user go to[" + data.row + "][" + data.col + "]");
-      console.log(checkWinner(room.game));
-      socket.in(socket.room).emit("move", room);
-      socket.emit("move", room);
+
+      // console.log(checkWinner(room.game));
+      if (checkWinner(room.game)) {
+        room.status = "finish";
+        room.winner = user;
+
+        io.in(socket.room).emit("finish-game", room);
+      } else io.in(socket.room).emit("move", room);
     }
     // for (var i = 0; i < listRooms.length; i++) {
     //   if (listRooms[i].id == socket.room) {
