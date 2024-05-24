@@ -4,6 +4,8 @@ const express = require("express");
 const cors = require("cors");
 const initLogic = require("../ai/logic");
 const { generateBoard } = require("../utils/generateBoard");
+const User = require("../models/user.model.js");
+const Game = require("../models/game.model.js");
 
 const app = express();
 const server = http.createServer(app);
@@ -19,9 +21,7 @@ const io = new Server(server, {
 const getReceiverSocketId = (receiverId) => {
   return userSocketMap[receiverId];
 };
-const initialBoard = Array(20)
-  .fill(null)
-  .map(() => Array(20).fill(""));
+
 const userSocketMap = {};
 const listRooms = [];
 const getRoom = (roomId) => {
@@ -30,17 +30,14 @@ const getRoom = (roomId) => {
 const updateGameBoard = (room, row, col, userId) => {
   if (!room || !room.game || !room.turn) return;
 
-  // Determine the mark based on the user making the move
   const mark = room.playerX._id === room.turn ? "X" : "O";
 
-  // Update the game board at the specified row and col
   if (room.game[row][col] === "") {
     room.game[row][col] = mark;
   } else {
-    return; // Invalid move, cell already occupied
+    return;
   }
 
-  // Switch turns to the next player
   room.turn =
     room.turn === room.playerX._id ? room.playerO._id : room.playerX._id;
   // console.log(room);
@@ -63,7 +60,6 @@ const checkWinner = (board) => {
     }
   }
 
-  // Check columns
   for (let col = 0; col < size; col++) {
     for (let row = 0; row <= size - winCondition; row++) {
       const sequence = [];
@@ -71,12 +67,11 @@ const checkWinner = (board) => {
         sequence.push(board[row + k][col]);
       }
       if (isWinningSequence(sequence)) {
-        return true; // Winner found
+        return true;
       }
     }
   }
 
-  // Check diagonals (top-left to bottom-right)
   for (let row = 0; row <= size - winCondition; row++) {
     for (let col = 0; col <= size - winCondition; col++) {
       const sequence = [];
@@ -84,12 +79,11 @@ const checkWinner = (board) => {
         sequence.push(board[row + k][col + k]);
       }
       if (isWinningSequence(sequence)) {
-        return true; // Winner found
+        return true;
       }
     }
   }
 
-  // Check diagonals (bottom-left to top-right)
   for (let row = winCondition - 1; row < size; row++) {
     for (let col = 0; col <= size - winCondition; col++) {
       const sequence = [];
@@ -97,12 +91,12 @@ const checkWinner = (board) => {
         sequence.push(board[row - k][col + k]);
       }
       if (isWinningSequence(sequence)) {
-        return true; // Winner found
+        return true;
       }
     }
   }
 
-  return false; // No winner
+  return false;
 };
 
 io.on("connection", (socket) => {
@@ -152,35 +146,42 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("joinroom", function (data) {
+  socket.on("joinroom", async function (data) {
     socket.data = data;
-    for (var i = 0; i < listRooms.length; i++) {
-      if (listRooms[i].playerO == null) {
-        listRooms[i].playerO = data.user;
-
-        listRooms[i].status = "ready";
-        socket.room = listRooms[i].id;
-        socket.join(socket.room);
-        io.in(socket.room).emit("joinroom-success", listRooms[i]);
-
-        console.log("Room [" + socket.room + "] ready");
-        return;
+    const user = await User.findById(data.user._id);
+    if (user.wallet < data.money) {
+      io.emit("not-enough-money");
+    } else {
+      for (var i = 0; i < listRooms.length; i++) {
+        if (
+          listRooms[i].playerO == null &&
+          listRooms[i].gamePrice === data.money
+        ) {
+          listRooms[i].playerO = data.user;
+          listRooms[i].status = "ready";
+          socket.room = listRooms[i].id;
+          socket.join(socket.room);
+          io.in(socket.room).emit("joinroom-success", listRooms[i]);
+          console.log("Room [" + socket.room + "] ready");
+          return;
+        }
       }
-    }
 
-    var room = {
-      id: data.user._id + Date.now(),
-      playerX: data.user,
-      playerO: null,
-      game: generateBoard(),
-      turn: data.user._id,
-      status: "created",
-    };
-    listRooms.push(room);
-    socket.room = room.id;
-    socket.join(socket.room);
-    console.log("Room [" + socket.room + "] created");
-    io.in(socket.room).emit("waiting-play", listRooms[i]);
+      var room = {
+        id: data.user._id + Date.now(),
+        playerX: data.user,
+        playerO: null,
+        game: generateBoard(),
+        gamePrice: data.money,
+        turn: data.user._id,
+        status: "created",
+      };
+      listRooms.push(room);
+      socket.room = room.id;
+      socket.join(socket.room);
+      console.log("Room [" + socket.room + "] created");
+      io.in(socket.room).emit("waiting-play", listRooms[i]);
+    }
   });
 
   socket.on("joinroom-ai", function (data) {
@@ -205,7 +206,7 @@ io.on("connection", (socket) => {
     console.log("Room [" + socket.room + "] with AI created");
   });
 
-  socket.on("move", function (data) {
+  socket.on("move", async function (data) {
     if (socket.withBot) {
       const botMove = socket.logic.makePlayerMove(data.row, data.col);
       if (botMove[0] == -1 && botMove[1] == -1) {
@@ -232,6 +233,41 @@ io.on("connection", (socket) => {
       if (checkWinner(room.game)) {
         room.status = "finish";
         room.winner = user;
+        //do win game
+        const indexToRemove = listRooms.findIndex(
+          (room) => room.id === room.id
+        );
+        if (indexToRemove !== -1) {
+          listRooms.splice(indexToRemove, 1);
+        }
+
+        let winnerId;
+        let loseId;
+        if (room.playerO._id !== user) {
+          winnerId = room.playerO._id;
+          loseId = room.playerX._id;
+        } else if (room.playerX._id !== user) {
+          winnerId = room.playerX._id;
+          loseId = room.playerO._id;
+        } else {
+          throw new Error("Winner cannot be the same as the current user.");
+        }
+        console.log(winnerId);
+        const newGame = new Game({
+          loser_id: loseId,
+          gamePrice: room.gamePrice,
+          winner_id: winnerId,
+        });
+        const winplayer = await User.findById(winnerId);
+        const loseplayer = await User.findById(loseId);
+        winplayer.wallet += room.gamePrice;
+        loseplayer.wallet -= room.gamePrice;
+
+        await Promise.all([
+          winplayer.save(),
+          loseplayer.save(),
+          newGame.save(),
+        ]);
 
         io.in(socket.room).emit("finish-game", room);
       } else io.in(socket.room).emit("move", room);
@@ -344,7 +380,7 @@ io.on("connection", (socket) => {
     socket.to(socket.room).emit("play-again-result", data);
   });
 
-  socket.on("disconnect", () => {
+  socket.on("disconnect", async () => {
     console.log("user disconnected", socket.id);
     delete userSocketMap[userId];
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
@@ -355,11 +391,6 @@ io.on("connection", (socket) => {
           listRooms.splice(i, 1);
           console.log("Room [" + socket.room + "] destroyed");
         } else {
-          if (listRooms[i].playerO === socket.data.fullname) {
-            listRooms[i].playerO = "DISCONNECTED";
-          } else {
-            listRooms[i].playerX = "DISCONNECTED";
-          }
           if (
             listRooms[i].playerO === "DISCONNECTED" &&
             listRooms[i].playerX === "DISCONNECTED"
@@ -369,15 +400,40 @@ io.on("connection", (socket) => {
           } else {
             socket.leave(socket.room);
             console.log(
-              "Player [" +
-                socket.data.fullname +
-                "] leave room [" +
-                socket.room +
-                "]"
+              "Player [" + userId + "] leave room [" + socket.room + "]"
             );
+            const room = getRoom(socket.room);
+
+            let winnerId;
+            let loseId;
+            if (room.playerO._id !== userId) {
+              winnerId = room.playerO._id;
+              loseId = room.playerX._id;
+            } else if (room.playerX._id !== userId) {
+              winnerId = room.playerX._id;
+              loseId = room.playerO._id;
+            } else {
+              throw new Error("Winner cannot be the same as the current user.");
+            }
+
+            const newGame = new Game({
+              loser_id: loseId,
+              gamePrice: room.gamePrice,
+              winner_id: winnerId,
+            });
+            const winplayer = await User.findById(winnerId);
+            const loseplayer = await User.findById(loseId);
+            winplayer.wallet += room.gamePrice;
+            loseplayer.wallet -= room.gamePrice;
+
+            await Promise.all([
+              winplayer.save(),
+              loseplayer.save(),
+              newGame.save(),
+            ]);
+
             io.in(listRooms[i].id).emit("emely-scrare", null);
             listRooms.splice(i, 1);
-            console.log(listRooms);
           }
         }
         break;

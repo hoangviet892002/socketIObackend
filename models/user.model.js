@@ -25,6 +25,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    wallet: {
+      type: Number,
+      default: 0,
+    },
   },
   { timestamps: true }
 );
