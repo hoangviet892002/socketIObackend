@@ -187,35 +187,53 @@ io.on("connection", (socket) => {
   socket.on("joinroom-ai", function (data) {
     socket.data = data;
     var room = {
-      id: data.username + Date.now(),
-      playerX: data.fullname,
-      playerO: "I am Bot",
+      id: data.user._id + Date.now(),
+      playerO: {
+        _id: "I am bot",
+      },
+      playerX: data.user,
+      game: generateBoard(),
+      gamePrice: 0,
+      turn: data.user._id,
+      status: "ready",
     };
     listRooms.push(room);
     socket.room = room.id;
     socket.withBot = true;
-    socket.emit("joinroom-success-ai", room);
     socket.logic = initLogic();
-    const randX = Math.floor(Math.random() * 10 + 5);
-    const randY = Math.floor(Math.random() * 10 + 5);
-    socket.logic.makeBotMove(randX, randY);
-    socket.emit("move", {
-      row: randX,
-      col: randY,
-    });
+    socket.emit("joinroom-success", room);
+    // const randX = Math.floor(Math.random() * 10 + 5);
+    // const randY = Math.floor(Math.random() * 10 + 5);
+    // socket.logic.makeBotMove(randX, randY);
+    // socket.emit("move", {
+    //   row: randX,
+    //   col: randY,
+    // });
     console.log("Room [" + socket.room + "] with AI created");
   });
 
   socket.on("move", async function (data) {
     if (socket.withBot) {
-      const botMove = socket.logic.makePlayerMove(data.row, data.col);
+      const { row, col, user } = data;
+      const room = getRoom(socket.room);
+      const botMove = socket.logic.makePlayerMove(row, col);
+      updateGameBoard(room, row, col, user._id);
       if (botMove[0] == -1 && botMove[1] == -1) {
         socket.emit("surrender-request", "I am bot");
       } else {
-        socket.emit("move", {
-          row: botMove[0],
-          col: botMove[1],
-        });
+        updateGameBoard(room, botMove[0], botMove[1], "I am bot");
+        if (checkWinner(room.game)) {
+          room.status = "finish";
+          room.winner = user;
+          //do win game
+          const indexToRemove = listRooms.findIndex(
+            (room) => room.id === room.id
+          );
+          if (indexToRemove !== -1) {
+            listRooms.splice(indexToRemove, 1);
+          }
+          io.in(socket.room).emit("finish-game", room);
+        } else socket.emit("move", room);
       }
     } else {
       const { row, col, user } = data;
