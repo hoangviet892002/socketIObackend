@@ -9,7 +9,13 @@ const Game = require("../models/game.model.js");
 
 const app = express();
 const server = http.createServer(app);
-app.use(cors({ origin: "http://localhost:5173" }));
+app.use(
+  cors({
+    origin: ["http://localhost:5173", "http://localhost:8000"],
+    methods: ["GET", "POST"],
+    credentials: true,
+  })
+);
 
 const io = new Server(server, {
   cors: {

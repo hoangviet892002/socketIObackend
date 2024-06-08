@@ -8,20 +8,26 @@ const route = require("./routes");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const { app } = require("./socket/socket");
-
+const setupSwagger = require("./utils/swagger");
 dotenv.config();
 
 // view engine setup
 app.set("views", path.join(__dirname, "views"));
 app.set("view engine", "jade");
-app.use(cors({ origin: "http://localhost:5173" }));
+app.use(
+  cors({
+    origin: ["http://localhost:5173", "http://localhost:8000"], // Add any other origins as needed
+    methods: ["GET", "POST"],
+    credentials: true, // Add this line to allow cookies to be sent with the request
+  })
+);
 
 app.use(logger("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
-
+setupSwagger(app);
 route(app);
 connectToMongoDB();
 // catch 404 and forward to error handler

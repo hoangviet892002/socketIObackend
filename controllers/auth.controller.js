@@ -4,6 +4,7 @@ const { generateToken } = require("../utils/generateToken.js");
 
 const signup = async (req, res) => {
   try {
+    console.log(req.body);
     const { fullName, username, password, confirmPassword, gender } = req.body;
 
     if (password !== confirmPassword) {
