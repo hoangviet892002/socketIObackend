@@ -14,6 +14,9 @@ const options = {
       {
         url: "http://localhost:8000/api",
       },
+      {
+        url: "http://localhost:3000/api",
+      },
     ],
     components: {
       securitySchemes: {

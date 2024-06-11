@@ -1,23 +1,26 @@
 const express = require("express");
 const protectRoute = require("../middleware/protectRoute");
-const { getUsers } = require("../controllers/user.controller.js");
+const { getGame } = require("../controllers/game.controller.js");
 
 var router = express.Router();
+
 /**
  * @swagger
  * tags:
- *   name: Message
- *   description: The message managing API
+ *   name: History Game
+ *   description: The History Game managing API
  */
+
 /**
  * @swagger
- * /user:
+ * /game:
  *   get:
- *     summary: Get all users
- *     tags: [User]
+ *     summary: Get all history game
+ *     tags:
+ *       - History Game
  *     responses:
  *       200:
- *         description: The users
+ *         description: The history game
  *         content:
  *           application/json:
  *             schema:
@@ -34,17 +37,17 @@ var router = express.Router();
  *                       _id:
  *                         type: string
  *                         example: "60f9a3e0b4c7b00015b5b7e3"
- *                       fullName:
+ *                       game:
  *                         type: string
- *                         example: "John Doe"
- *                       username:
+ *                         example: "Tic Tac Toe"
+ *                       result:
  *                         type: string
- *                         example: "johndoe"
- *                       profilePic:
+ *                         example: "Win"
+ *                       time:
  *                         type: string
- *                         example: "https://example.com/profile.jpg"
+ *                         example: "2021-07-23T08:00:00.000Z"
  */
 
-router.get("/", protectRoute, getUsers);
+router.get("/", protectRoute, getGame);
 
 module.exports = router;
