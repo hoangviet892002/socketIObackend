@@ -1,6 +1,12 @@
 var express = require("express");
 var router = express.Router();
-const { signup, login, logout } = require("../controllers/auth.controller");
+const {
+  signup,
+  login,
+  logout,
+  getProfile,
+} = require("../controllers/auth.controller");
+const protectRoute = require("../middleware/protectRoute");
 /**
  * @swagger
  * components:
@@ -139,6 +145,42 @@ router.post("/signup", signup);
  */
 router.post("/login", login);
 
+/**
+ * @swagger
+ * /auth/profile:
+ *   get:
+ *     summary: Get user profile
+ *     tags:
+ *       - Auth
+ *     responses:
+ *       200:
+ *         description: The user profile
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Success"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: "60f9a3e0b4c7b00015b5b7e3"
+ *                     fullName:
+ *                       type: string
+ *                       example: "John Doe"
+ *                     username:
+ *                       type: string
+ *                       example: "johndoe"
+ *                     profilePic:
+ *                       type: string
+ *                       example: "https://example.com/profile.jpg"
+ */
+
+router.get("/profile", protectRoute, getProfile);
 router.post("/logout", logout);
 
 module.exports = router;

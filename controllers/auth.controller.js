@@ -115,9 +115,15 @@ const logout = (req, res) => {
       .json({ message: "Internal Server Error", data: null, onSuccess: false });
   }
 };
+const getProfile = async (req, res) => {
+  const id = req.user._id;
+  const user = await User.findById(id);
+  res.status(200).json({ message: "Success", data: user, onSuccess: true });
+};
 
 module.exports = {
   signup,
   login,
   logout,
+  getProfile,
 };
