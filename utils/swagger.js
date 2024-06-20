@@ -12,6 +12,9 @@ const options = {
     },
     servers: [
       {
+        url: "https://socketiobackend-1.onrender.com/api",
+      },
+      {
         url: "http://localhost:8000/api",
       },
       {
