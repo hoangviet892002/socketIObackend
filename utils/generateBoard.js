@@ -1,7 +1,7 @@
 const generateBoard = (id) => {
-  return Array(20)
+  return Array(12)
     .fill(null)
-    .map(() => Array(20).fill(""));
+    .map(() => Array(12).fill(""));
 };
 
 module.exports = { generateBoard };

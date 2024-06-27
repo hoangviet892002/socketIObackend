@@ -292,7 +292,7 @@ io.on("connection", (socket) => {
           loseplayer.save(),
           newGame.save(),
         ]);
-
+        io.in(socket.room).emit("move", room);
         io.in(socket.room).emit("finish-game", room);
       } else io.in(socket.room).emit("move", room);
     }

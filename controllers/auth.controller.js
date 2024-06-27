@@ -92,6 +92,7 @@ const login = async (req, res) => {
         _id: user._id,
         fullName: user.fullName,
         profilePic: user.profilePic,
+        wallet: user.wallet,
         token: token,
       },
       onSuccess: true,
