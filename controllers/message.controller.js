@@ -1,5 +1,6 @@
 const Conversation = require("../models/conversation.model.js");
 const Message = require("../models/messages.model.js");
+const User = require("../models/user.model.js");
 const { getReceiverSocketId, io } = require("../socket/socket.js");
 
 const sendMessage = async (req, res) => {
@@ -38,7 +39,10 @@ const sendMessage = async (req, res) => {
     const receiverSocketId = getReceiverSocketId(receiverId);
     if (receiverSocketId) {
       // io.to(<socket_id>).emit() used to send events to specific client
-      io.to(receiverSocketId).emit("newMessage", newMessage);
+      const user = await User.findById(senderId);
+      const newToSend = { ...newMessage._doc, senderName: user.fullName };
+      console.log(newToSend);
+      io.to(receiverSocketId).emit("newMessage", newToSend);
     }
 
     res.status(200).json({
