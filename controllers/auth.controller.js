@@ -121,10 +121,66 @@ const getProfile = async (req, res) => {
   const user = await User.findById(id);
   res.status(200).json({ message: "Success", data: user, onSuccess: true });
 };
+const updateProfile = async (req, res) => {
+  try {
+    const id = req.user._id;
+    const { fullName, profilePic, gender } = req.body;
+    const user = await User.findById(id);
+
+    user.fullName = fullName;
+    user.profilePic = profilePic;
+    user.gender = gender;
+    await user.save();
+    res
+      .status(200)
+      .json({ message: "Update success", data: user, onSuccess: true });
+  } catch (error) {
+    res
+      .status(200)
+      .json({ message: "Internal Server Error", data: null, onSuccess: false });
+  }
+};
+const changePassword = async (req, res) => {
+  try {
+    const id = req.user._id;
+    const { oldPassword, newPassword, confirmPassword } = req.body;
+    const user = await User.findById(id);
+    const isPasswordCorrect = await bcrypt.compare(oldPassword, user.password);
+    if (!isPasswordCorrect) {
+      return res.status(200).json({
+        message: "Invalid old password",
+        data: null,
+        onSuccess: false,
+      });
+    }
+    if (newPassword !== confirmPassword) {
+      return res.status(200).json({
+        message: "Passwords don't match",
+        data: null,
+        onSuccess: false,
+      });
+    }
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+    user.password = hashedPassword;
+    await user.save();
+    res.status(200).json({
+      message: "Change password success",
+      data: user,
+      onSuccess: true,
+    });
+  } catch (error) {
+    res
+      .status(200)
+      .json({ message: "Internal Server Error", data: null, onSuccess: false });
+  }
+};
 
 module.exports = {
   signup,
   login,
   logout,
   getProfile,
+  updateProfile,
+  changePassword,
 };

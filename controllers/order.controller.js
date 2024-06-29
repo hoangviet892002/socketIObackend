@@ -45,68 +45,16 @@ const accountService = {
     return account;
   },
 };
-const create_payment = (req, res) => {
-  const { package: packageTy } = req.params;
-  const userId = req.user._id;
-
-  const date = new Date();
-  const ipAddr = req.ip;
-  const createDate = moment(date).format("YYYYMMDDHHmmss");
-  const orderId = moment(date).format("DDHHmmss");
-  const tmnCode = "0HMW9F90";
-  const secretKey = "4IKW54V2L7D1RN4L8PDKTP2Y2UP3O9BI";
-  let vnpUrl = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
-  const returnUrl = `http://localhost:3000/payment/vnpay_return/${packageTy}/${userId}`;
-  let amount;
-  switch (packageTy) {
-    case "Common":
-      amount = 10000;
-      break;
-    case "Uncommon":
-      amount = 50000;
-      break;
-    case "Rare":
-      amount = 200000;
-      break;
-    case "Epic":
-      amount = 500000;
-      break;
-    case "Legendary":
-      amount = 1000000;
-      break;
-    default:
-      amount = 0;
-      break;
-  }
-  const vnp_Params = {
-    vnp_Version: "2.1.0",
-    vnp_Command: "pay",
-    vnp_TmnCode: tmnCode,
-    vnp_Locale: "vn",
-    vnp_CurrCode: "VND",
-    vnp_TxnRef: orderId,
-    vnp_OrderInfo: `Thanh toan cho ma GD: ${orderId}`,
-    vnp_OrderType: "other",
-    vnp_IpAddr: ipAddr,
-    vnp_Amount: amount * 100,
-    vnp_ReturnUrl: returnUrl,
-
-    vnp_CreateDate: createDate,
-  };
-  const sortedVnpParams = sortObject(vnp_Params);
-  const signData = qs.stringify(sortedVnpParams, { encode: false });
-  const hmac = crypto.createHmac("sha512", secretKey);
-  const signed = hmac.update(Buffer.from(signData, "utf-8")).digest("hex");
-  vnp_Params["vnp_SecureHash"] = signed;
-  vnpUrl += "?" + qs.stringify(vnp_Params, { encode: false });
-
+const create_payment = async (req, res) => {
+  const id = req.user.id;
+  const { money } = req.body;
+  const user = await User.findById(id);
+  user.wallet += money;
+  user.save();
   return res.status(200).json({
-    message: "Payment created",
+    message: "Success",
     data: {
-      package: packageTy,
-      price: amount,
-      orderId,
-      vnpUrl,
+      wallet: user.wallet,
     },
     onSuccess: true,
   });
