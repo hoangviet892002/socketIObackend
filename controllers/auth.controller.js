@@ -121,10 +121,30 @@ const getProfile = async (req, res) => {
   const user = await User.findById(id);
   res.status(200).json({ message: "Success", data: user, onSuccess: true });
 };
+const updateProfile = async (req, res) => {
+  try {
+    const id = req.user._id;
+    const { fullName, profilePic, gender } = req.body;
+    const user = await User.findById(id);
+
+    user.fullName = fullName;
+    user.profilePic = profilePic;
+    user.gender = gender;
+    await user.save();
+    res
+      .status(200)
+      .json({ message: "Update success", data: user, onSuccess: true });
+  } catch (error) {
+    res
+      .status(200)
+      .json({ message: "Internal Server Error", data: null, onSuccess: false });
+  }
+};
 
 module.exports = {
   signup,
   login,
   logout,
   getProfile,
+  updateProfile,
 };

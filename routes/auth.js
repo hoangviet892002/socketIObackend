@@ -5,6 +5,7 @@ const {
   login,
   logout,
   getProfile,
+  updateProfile,
 } = require("../controllers/auth.controller");
 const protectRoute = require("../middleware/protectRoute");
 /**
@@ -181,6 +182,61 @@ router.post("/login", login);
  */
 
 router.get("/profile", protectRoute, getProfile);
+
+/**
+ * @swagger
+ * /auth/update-profile:
+ *   post:
+ *     summary: Update user profile
+ *     tags:
+ *       - Auth
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               fullName:
+ *                 type: string
+ *               profilePic:
+ *                 type: string
+ *               gender:
+ *                 type: string
+ *             required:
+ *               - fullName
+ *               - profilePic
+ *               - gender
+ *     responses:
+ *       '200':
+ *         description: Update success
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     fullName:
+ *                       type: string
+ *                     username:
+ *                       type: string
+ *                     profilePic:
+ *                       type: string
+ *                     onSuccess:
+ *                       type: boolean
+ *       '400':
+ *         description: Bad request
+ *       '500':
+ *         description: Internal server error
+ */
+
+router.post("/update-profile", protectRoute, updateProfile);
 router.post("/logout", logout);
 
 module.exports = router;
