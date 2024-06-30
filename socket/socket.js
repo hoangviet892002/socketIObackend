@@ -49,6 +49,7 @@ const updateGameBoard = (room, row, col, userId) => {
   // console.log(room);
 };
 
+
 const checkWinner = (board) => {
   const size = board.length;
   const winCondition = 5;
@@ -57,15 +58,20 @@ const checkWinner = (board) => {
     return sequence.every((cell) => cell !== "" && cell === sequence[0]);
   };
 
+  // Check rows
   for (let row = 0; row < size; row++) {
     for (let col = 0; col <= size - winCondition; col++) {
       const sequence = board[row].slice(col, col + winCondition);
       if (isWinningSequence(sequence)) {
-        return true;
+        return {
+          cells: Array.from({ length: winCondition }, (_, i) => [row, col + i]),
+          mark: sequence[0]
+        };
       }
     }
   }
 
+  // Check columns
   for (let col = 0; col < size; col++) {
     for (let row = 0; row <= size - winCondition; row++) {
       const sequence = [];
@@ -73,11 +79,15 @@ const checkWinner = (board) => {
         sequence.push(board[row + k][col]);
       }
       if (isWinningSequence(sequence)) {
-        return true;
+        return {
+          cells: Array.from({ length: winCondition }, (_, i) => [row + i, col]),
+          mark: sequence[0]
+        };
       }
     }
   }
 
+  // Check diagonals (top-left to bottom-right)
   for (let row = 0; row <= size - winCondition; row++) {
     for (let col = 0; col <= size - winCondition; col++) {
       const sequence = [];
@@ -85,11 +95,15 @@ const checkWinner = (board) => {
         sequence.push(board[row + k][col + k]);
       }
       if (isWinningSequence(sequence)) {
-        return true;
+        return {
+          cells: Array.from({ length: winCondition }, (_, i) => [row + i, col + i]),
+          mark: sequence[0]
+        };
       }
     }
   }
 
+  // Check diagonals (bottom-left to top-right)
   for (let row = winCondition - 1; row < size; row++) {
     for (let col = 0; col <= size - winCondition; col++) {
       const sequence = [];
@@ -97,14 +111,14 @@ const checkWinner = (board) => {
         sequence.push(board[row - k][col + k]);
       }
       if (isWinningSequence(sequence)) {
-        return true;
+        return {
+          cells: Array.from({ length: winCondition }, (_, i) => [row - i, col + i]),
+          mark: sequence[0]
+        };
       }
     }
   }
-
-  return false;
-};
-
+}
 io.on("connection", (socket) => {
   console.log("a user connected", socket.id);
 
@@ -130,10 +144,10 @@ io.on("connection", (socket) => {
           socket.to(socket.room).emit("on-reconnect", listRooms[i]);
           console.log(
             "Player [" +
-              data.userInfo.username +
-              "] reconnected in room [" +
-              socket.room +
-              "]"
+            data.userInfo.username +
+            "] reconnected in room [" +
+            socket.room +
+            "]"
           );
           if (listRooms[i].lastMove) {
             socket.emit("move", listRooms[i].lastMove);
@@ -144,10 +158,10 @@ io.on("connection", (socket) => {
       socket.emit("on-reconnect", null);
       console.log(
         "Player [" +
-          data.userInfo.username +
-          "] find room [" +
-          data.roomInfo.id +
-          "] but not exists"
+        data.userInfo.username +
+        "] find room [" +
+        data.roomInfo.id +
+        "] but not exists"
       );
     }
   });
@@ -226,11 +240,13 @@ io.on("connection", (socket) => {
       updateGameBoard(room, row, col, user._id);
       if (botMove[0] == -1 && botMove[1] == -1) {
         socket.emit("surrender-request", "I am bot");
+
       } else {
         updateGameBoard(room, botMove[0], botMove[1], "I am bot");
         if (checkWinner(room.game)) {
+          room.result = checkWinner(room.game)
           room.status = "finish";
-          room.winner = user;
+          room.winner = room.result?.mark == "X" ? user : "I am bot"
           //do win game
           const indexToRemove = listRooms.findIndex(
             (room) => room.id === room.id
@@ -238,8 +254,9 @@ io.on("connection", (socket) => {
           if (indexToRemove !== -1) {
             listRooms.splice(indexToRemove, 1);
           }
-          io.in(socket.room).emit("finish-game", room);
-        } else socket.emit("move", room);
+          io.emit("move", room);
+          io.emit("finish-game", room);
+        } else io.emit("move", room);
       }
     } else {
       const { row, col, user } = data;
@@ -292,9 +309,9 @@ io.on("connection", (socket) => {
           loseplayer.save(),
           newGame.save(),
         ]);
-        io.in(socket.room).emit("move", room);
+        io.emit("move", room);
         io.in(socket.room).emit("finish-game", room);
-      } else io.in(socket.room).emit("move", room);
+      } else io.emit("move", room);
     }
     // for (var i = 0; i < listRooms.length; i++) {
     //   if (listRooms[i].id == socket.room) {
