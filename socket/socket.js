@@ -274,6 +274,7 @@ io.on("connection", (socket) => {
       if (checkWinner(room.game)) {
         room.status = "finish";
         room.winner = user;
+        room.result = checkWinner(room.game)
         //do win game
         const indexToRemove = listRooms.findIndex(
           (room) => room.id === room.id
@@ -285,11 +286,11 @@ io.on("connection", (socket) => {
         let winnerId;
         let loseId;
         if (room.playerO._id !== user) {
-          winnerId = room.playerO._id;
-          loseId = room.playerX._id;
-        } else if (room.playerX._id !== user) {
           winnerId = room.playerX._id;
           loseId = room.playerO._id;
+        } else if (room.playerX._id !== user) {
+          winnerId = room.playerO._id;
+          loseId = room.playerX._id;
         } else {
           throw new Error("Winner cannot be the same as the current user.");
         }
