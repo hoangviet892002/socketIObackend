@@ -221,16 +221,42 @@ io.on("connection", (socket) => {
   socket.on("move", async function (data) {
     if (socket.withBot) {
       const { row, col, user } = data;
+      console.log(user);
       const room = getRoom(socket.room);
       const botMove = socket.logic.makePlayerMove(row, col);
+      console.log(botMove);
       updateGameBoard(room, row, col, user._id);
+      if (checkWinner(room.game)) {
+        console.log("You win");
+        room.status = "finish";
+        room.winner = user;
+        //do win game
+        const indexToRemove = listRooms.findIndex(
+          (room) => room.id === room.id
+        );
+        if (indexToRemove !== -1) {
+          listRooms.splice(indexToRemove, 1);
+        }
+        socket.emit("finish-game", room);
+      }
       if (botMove[0] == -1 && botMove[1] == -1) {
-        socket.emit("surrender-request", "I am bot");
+        console.log("Bot lose");
+        room.status = "finish";
+        room.winner = user;
+        //do win game
+        const indexToRemove = listRooms.findIndex(
+          (room) => room.id === room.id
+        );
+        if (indexToRemove !== -1) {
+          listRooms.splice(indexToRemove, 1);
+        }
+        socket.emit("finish-game", room);
       } else {
         updateGameBoard(room, botMove[0], botMove[1], "I am bot");
         if (checkWinner(room.game)) {
+          console.log("Bot win");
           room.status = "finish";
-          room.winner = user;
+          room.winner = "bot";
           //do win game
           const indexToRemove = listRooms.findIndex(
             (room) => room.id === room.id
@@ -238,7 +264,7 @@ io.on("connection", (socket) => {
           if (indexToRemove !== -1) {
             listRooms.splice(indexToRemove, 1);
           }
-          io.in(socket.room).emit("finish-game", room);
+          socket.emit("finish-game", room);
         } else socket.emit("move", room);
       }
     } else {

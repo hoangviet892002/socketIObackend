@@ -15,6 +15,13 @@ var router = express.Router();
  *   get:
  *     summary: Get all users
  *     tags: [User]
+ *     parameters:
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: The search string
+ *         example: "John"
  *     responses:
  *       200:
  *         description: The users
