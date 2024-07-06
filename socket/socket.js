@@ -57,15 +57,20 @@ const checkWinner = (board) => {
     return sequence.every((cell) => cell !== "" && cell === sequence[0]);
   };
 
+  // Check rows
   for (let row = 0; row < size; row++) {
     for (let col = 0; col <= size - winCondition; col++) {
       const sequence = board[row].slice(col, col + winCondition);
       if (isWinningSequence(sequence)) {
-        return true;
+        return {
+          cells: Array.from({ length: winCondition }, (_, i) => [row, col + i]),
+          mark: sequence[0],
+        };
       }
     }
   }
 
+  // Check columns
   for (let col = 0; col < size; col++) {
     for (let row = 0; row <= size - winCondition; row++) {
       const sequence = [];
@@ -73,11 +78,15 @@ const checkWinner = (board) => {
         sequence.push(board[row + k][col]);
       }
       if (isWinningSequence(sequence)) {
-        return true;
+        return {
+          cells: Array.from({ length: winCondition }, (_, i) => [row + i, col]),
+          mark: sequence[0],
+        };
       }
     }
   }
 
+  // Check diagonals (top-left to bottom-right)
   for (let row = 0; row <= size - winCondition; row++) {
     for (let col = 0; col <= size - winCondition; col++) {
       const sequence = [];
@@ -85,11 +94,18 @@ const checkWinner = (board) => {
         sequence.push(board[row + k][col + k]);
       }
       if (isWinningSequence(sequence)) {
-        return true;
+        return {
+          cells: Array.from({ length: winCondition }, (_, i) => [
+            row + i,
+            col + i,
+          ]),
+          mark: sequence[0],
+        };
       }
     }
   }
 
+  // Check diagonals (bottom-left to top-right)
   for (let row = winCondition - 1; row < size; row++) {
     for (let col = 0; col <= size - winCondition; col++) {
       const sequence = [];
@@ -97,14 +113,17 @@ const checkWinner = (board) => {
         sequence.push(board[row - k][col + k]);
       }
       if (isWinningSequence(sequence)) {
-        return true;
+        return {
+          cells: Array.from({ length: winCondition }, (_, i) => [
+            row - i,
+            col + i,
+          ]),
+          mark: sequence[0],
+        };
       }
     }
   }
-
-  return false;
 };
-
 io.on("connection", (socket) => {
   console.log("a user connected", socket.id);
 
@@ -221,15 +240,16 @@ io.on("connection", (socket) => {
   socket.on("move", async function (data) {
     if (socket.withBot) {
       const { row, col, user } = data;
-      console.log(user);
+
       const room = getRoom(socket.room);
       const botMove = socket.logic.makePlayerMove(row, col);
-      console.log(botMove);
+
       updateGameBoard(room, row, col, user._id);
       if (checkWinner(room.game)) {
         console.log("You win");
         room.status = "finish";
         room.winner = user;
+        room.result = checkWinner(room.game);
         //do win game
         const indexToRemove = listRooms.findIndex(
           (room) => room.id === room.id
@@ -237,12 +257,20 @@ io.on("connection", (socket) => {
         if (indexToRemove !== -1) {
           listRooms.splice(indexToRemove, 1);
         }
+        const newGame = new Game({
+          loser_id: "6688de78e57dc154ae9d93f0",
+          gamePrice: 0,
+          winner_id: user,
+        });
+        newGame.save();
+
         socket.emit("finish-game", room);
       }
       if (botMove[0] == -1 && botMove[1] == -1) {
         console.log("Bot lose");
         room.status = "finish";
         room.winner = user;
+        room.result = checkWinner(room.game);
         //do win game
         const indexToRemove = listRooms.findIndex(
           (room) => room.id === room.id
@@ -250,6 +278,12 @@ io.on("connection", (socket) => {
         if (indexToRemove !== -1) {
           listRooms.splice(indexToRemove, 1);
         }
+        const newGame = new Game({
+          loser_id: "6688de78e57dc154ae9d93f0",
+          gamePrice: 0,
+          winner_id: user,
+        });
+        newGame.save();
         socket.emit("finish-game", room);
       } else {
         updateGameBoard(room, botMove[0], botMove[1], "I am bot");
@@ -257,6 +291,7 @@ io.on("connection", (socket) => {
           console.log("Bot win");
           room.status = "finish";
           room.winner = "bot";
+          room.result = checkWinner(room.game);
           //do win game
           const indexToRemove = listRooms.findIndex(
             (room) => room.id === room.id
@@ -264,6 +299,12 @@ io.on("connection", (socket) => {
           if (indexToRemove !== -1) {
             listRooms.splice(indexToRemove, 1);
           }
+          const newGame = new Game({
+            loser_id: user,
+            gamePrice: 0,
+            winner_id: "6688de78e57dc154ae9d93f0",
+          });
+          newGame.save();
           socket.emit("finish-game", room);
         } else socket.emit("move", room);
       }
@@ -283,6 +324,7 @@ io.on("connection", (socket) => {
       if (checkWinner(room.game)) {
         room.status = "finish";
         room.winner = user;
+        room.result = checkWinner(room.game);
         //do win game
         const indexToRemove = listRooms.findIndex(
           (room) => room.id === room.id
@@ -294,11 +336,11 @@ io.on("connection", (socket) => {
         let winnerId;
         let loseId;
         if (room.playerO._id !== user) {
-          winnerId = room.playerO._id;
-          loseId = room.playerX._id;
-        } else if (room.playerX._id !== user) {
           winnerId = room.playerX._id;
           loseId = room.playerO._id;
+        } else if (room.playerX._id !== user) {
+          winnerId = room.playerO._id;
+          loseId = room.playerX._id;
         } else {
           throw new Error("Winner cannot be the same as the current user.");
         }
@@ -318,9 +360,9 @@ io.on("connection", (socket) => {
           loseplayer.save(),
           newGame.save(),
         ]);
-        io.in(socket.room).emit("move", room);
+        io.emit("move", room);
         io.in(socket.room).emit("finish-game", room);
-      } else io.in(socket.room).emit("move", room);
+      } else io.emit("move", room);
     }
     // for (var i = 0; i < listRooms.length; i++) {
     //   if (listRooms[i].id == socket.room) {
