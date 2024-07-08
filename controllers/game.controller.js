@@ -17,11 +17,13 @@ const getGame = async (req, res) => {
       game.winner_id._id === id ? game.loser_id : game.winner_id;
     const result = game.winner_id._id === id ? "Win" : "Lose";
     const price = game.gamePrice;
+    const createdAt = game.createdAt;
 
     return {
       competitor,
       result,
       price,
+      createdAt,
     };
   });
 
